@@ -1,0 +1,180 @@
+/* 像素风格字体 - 使用本地备用字体 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* 全局像素风格设置 */
+* {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* 禁用文字选择和拖拽 */
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Canvas 像素化设置 */
+canvas {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* 按钮像素风格 */
+button {
+  image-rendering: pixelated;
+  font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+  border: none;
+  outline: none;
+  cursor: pointer;
+}
+
+button:focus {
+  outline: 2px solid #00FF00;
+  outline-offset: 2px;
+}
+
+/* 像素风格动画 */
+@keyframes pixelPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes pixelBounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40%, 43% {
+    transform: translateY(-8px);
+  }
+  70% {
+    transform: translateY(-4px);
+  }
+  90% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes pixelShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-2px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(2px);
+  }
+}
+
+/* 自定义工具类 */
+.pixel-font {
+  font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.pixel-border {
+  border-style: solid;
+  border-width: 4px;
+  image-rendering: pixelated;
+}
+
+.pixel-button {
+  @apply pixel-font pixel-border;
+  background: linear-gradient(180deg, #4a5568 0%, #2d3748 100%);
+  box-shadow: 
+    inset 2px 2px 0px rgba(255, 255, 255, 0.2),
+    inset -2px -2px 0px rgba(0, 0, 0, 0.3),
+    0px 4px 0px #1a202c;
+  transition: all 0.1s ease;
+}
+
+.pixel-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 
+    inset 2px 2px 0px rgba(255, 255, 255, 0.3),
+    inset -2px -2px 0px rgba(0, 0, 0, 0.2),
+    0px 5px 0px #1a202c;
+}
+
+.pixel-button:active {
+  transform: translateY(2px);
+  box-shadow: 
+    inset 2px 2px 0px rgba(0, 0, 0, 0.2),
+    inset -2px -2px 0px rgba(255, 255, 255, 0.1),
+    0px 2px 0px #1a202c;
+}
+
+/* 游戏UI样式 */
+.game-ui {
+  font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.8);
+}
+
+.retro-glow {
+  box-shadow: 
+    0 0 5px currentColor,
+    0 0 10px currentColor,
+    0 0 15px currentColor;
+}
+
+/* 星空背景动画 */
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.star {
+  animation: twinkle 2s infinite;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a202c;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2d3748;
+}
