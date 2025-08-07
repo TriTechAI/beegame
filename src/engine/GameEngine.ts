@@ -6,8 +6,13 @@ import {
   GameState,
   GameConfig,
   DEFAULT_CONFIG,
-  ENEMY_TYPES
+  ENEMY_TYPES,
+  getResponsiveCanvasSize
 } from '../types/game';
+import { SoundManager } from './SoundManager';
+
+// 创建全局音效管理器实例
+const soundManager = new SoundManager();
 
 export class GameEngine {
   private canvas: HTMLCanvasElement;
@@ -18,9 +23,18 @@ export class GameEngine {
   private enemies: Enemy[];
   private bullets: Bullet[];
   private keys: Set<string>;
+  private virtualKeys: { [key: string]: boolean }; // 虚拟按键状态
   private animationId: number | null;
   private lastTime: number;
   private stars: Array<{ x: number; y: number; size: number }>;
+  private backgroundMusicSource: AudioBufferSourceNode | null = null;
+  private touchControls: {
+    up: boolean;
+    down: boolean;
+    left: boolean;
+    right: boolean;
+    shoot: boolean;
+  };
 
   constructor() {
     this.config = { ...DEFAULT_CONFIG };
@@ -34,6 +48,14 @@ export class GameEngine {
     this.enemies = [];
     this.bullets = [];
     this.keys = new Set();
+    this.virtualKeys = {};
+    this.touchControls = {
+      up: false,
+      down: false,
+      left: false,
+      right: false,
+      shoot: false
+    };
     this.animationId = null;
     this.lastTime = 0;
     this.stars = [];
@@ -63,26 +85,70 @@ export class GameEngine {
     }
     this.ctx = context;
     
-    // 设置画布尺寸
-    this.canvas.width = this.config.canvasWidth;
-    this.canvas.height = this.config.canvasHeight;
+    // 设置响应式画布尺寸
+    this.updateCanvasSize();
     
     // 绑定键盘事件
     this.bindEvents();
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', this.handleResize.bind(this));
+    window.addEventListener('orientationchange', this.handleResize.bind(this));
+  }
+
+  // 更新Canvas尺寸
+  private updateCanvasSize(): void {
+    const { width, height, isMobile, scaleFactor } = getResponsiveCanvasSize();
+    
+    this.config.canvasWidth = width;
+    this.config.canvasHeight = height;
+    this.config.isMobile = isMobile;
+    this.config.scaleFactor = scaleFactor;
+    
+    if (this.canvas) {
+      this.canvas.width = width;
+      this.canvas.height = height;
+      
+      // 设置Canvas样式尺寸
+      this.canvas.style.width = `${width}px`;
+      this.canvas.style.height = `${height}px`;
+    }
+    
+    // 重新初始化星空
+    this.initStars();
+    
+    // 调整玩家位置（如果已存在）
+    if (this.player) {
+      this.player.x = Math.min(this.player.x, this.config.canvasWidth - this.player.width);
+      this.player.y = Math.min(this.player.y, this.config.canvasHeight - this.player.height);
+    }
+  }
+  
+  // 处理窗口大小变化
+  private handleResize(): void {
+    // 延迟处理，避免频繁调用
+    setTimeout(() => {
+      this.updateCanvasSize();
+    }, 100);
   }
 
   // 绑定事件
   private bindEvents(): void {
-    document.addEventListener('keydown', (e) => {
-      this.keys.add(e.code);
-      if (e.code === 'Escape' && this.gameState.gameStatus === 'playing') {
-        this.pauseGame();
-      }
-    });
+    document.addEventListener('keydown', this.handleKeyDown.bind(this));
+    document.addEventListener('keyup', this.handleKeyUp.bind(this));
+  }
 
-    document.addEventListener('keyup', (e) => {
-      this.keys.delete(e.code);
-    });
+  // 处理按键按下
+  private handleKeyDown(e: KeyboardEvent): void {
+    this.keys.add(e.code);
+    if (e.code === 'Escape' && this.gameState.gameStatus === 'playing') {
+      this.pauseGame();
+    }
+  }
+
+  // 处理按键释放
+  private handleKeyUp(e: KeyboardEvent): void {
+    this.keys.delete(e.code);
   }
 
   // 生成星空背景
@@ -94,6 +160,12 @@ export class GameEngine {
         size: Math.random() * 2 + 1
       });
     }
+  }
+
+  // 初始化星空
+  private initStars(): void {
+    this.stars = [];
+    this.generateStars();
   }
 
   // 开始游戏
@@ -109,6 +181,11 @@ export class GameEngine {
     this.enemies = [];
     this.bullets = [];
     this.lastTime = performance.now();
+    
+    // 恢复音频上下文并播放背景音乐
+    soundManager.resumeAudioContext();
+    this.playBackgroundMusic();
+    
     this.gameLoop();
   }
 
@@ -134,6 +211,21 @@ export class GameEngine {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
     }
+    
+    // 清理事件监听器
+    this.cleanup();
+  }
+  
+  // 清理资源
+  private cleanup(): void {
+    window.removeEventListener('resize', this.handleResize.bind(this));
+    window.removeEventListener('orientationchange', this.handleResize.bind(this));
+    document.removeEventListener('keydown', this.handleKeyDown.bind(this));
+    document.removeEventListener('keyup', this.handleKeyUp.bind(this));
+    
+    // 停止背景音乐并播放游戏结束音效
+    this.stopBackgroundMusic();
+    soundManager.playSound('gameOver', 0.8);
   }
 
   // 游戏主循环
@@ -168,24 +260,33 @@ export class GameEngine {
   private handleInput(): void {
     const currentTime = performance.now();
     
+    // 检查键盘或触摸控制
+    const isLeftPressed = this.keys.has('ArrowLeft') || this.touchControls.left;
+    const isRightPressed = this.keys.has('ArrowRight') || this.touchControls.right;
+    const isUpPressed = this.keys.has('ArrowUp') || this.touchControls.up;
+    const isDownPressed = this.keys.has('ArrowDown') || this.touchControls.down;
+    const isShootPressed = this.keys.has('Space') || this.touchControls.shoot;
+    
     // 移动控制
-    if (this.keys.has('ArrowLeft') && this.player.x > 0) {
+    if (isLeftPressed && this.player.x > 0) {
       this.player.x -= this.player.speed;
     }
-    if (this.keys.has('ArrowRight') && this.player.x < this.config.canvasWidth - this.player.width) {
+    if (isRightPressed && this.player.x < this.config.canvasWidth - this.player.width) {
       this.player.x += this.player.speed;
     }
-    if (this.keys.has('ArrowUp') && this.player.y > 0) {
+    if (isUpPressed && this.player.y > 0) {
       this.player.y -= this.player.speed;
     }
-    if (this.keys.has('ArrowDown') && this.player.y < this.config.canvasHeight - this.player.height) {
+    if (isDownPressed && this.player.y < this.config.canvasHeight - this.player.height) {
       this.player.y += this.player.speed;
     }
     
     // 射击控制
-    if (this.keys.has('Space') && currentTime - this.player.lastShot > 200) {
+    if (isShootPressed && currentTime - this.player.lastShot > 200) {
       this.shootBullet(this.player.x + this.player.width / 2, this.player.y, 'player');
       this.player.lastShot = currentTime;
+      // 播放射击音效
+      soundManager.playSound('shoot', 0.6);
     }
   }
 
@@ -272,10 +373,21 @@ export class GameEngine {
               this.gameState.score += enemy.points;
               this.enemies.splice(enemyIndex, 1);
               
+              // 播放爆炸音效
+              soundManager.playSound('explosion', 0.7);
+              
               // 升级检查
+              const oldLevel = this.gameState.level;
               if (this.gameState.score > this.gameState.level * 1000) {
                 this.gameState.level++;
+                // 播放升级音效
+                if (this.gameState.level > oldLevel) {
+                  soundManager.playSound('levelUp', 0.8);
+                }
               }
+            } else {
+              // 敌机被击中但未摧毁
+              soundManager.playSound('enemyHit', 0.5);
             }
           }
         });
@@ -287,6 +399,9 @@ export class GameEngine {
       if (this.isColliding(this.player, enemy)) {
         this.player.lives--;
         this.enemies.splice(enemyIndex, 1);
+        
+        // 播放玩家被击中音效
+        soundManager.playSound('playerHit', 0.8);
       }
     });
   }
@@ -555,5 +670,62 @@ export class GameEngine {
   // 设置游戏状态
   setGameState(newState: Partial<GameState>): void {
     this.gameState = { ...this.gameState, ...newState };
+  }
+
+  // 播放背景音乐
+  private playBackgroundMusic(): void {
+    this.stopBackgroundMusic();
+    this.backgroundMusicSource = soundManager.playSound('bgMusic', 0.3, true);
+  }
+
+  // 停止背景音乐
+  private stopBackgroundMusic(): void {
+    if (this.backgroundMusicSource) {
+      soundManager.stopSound(this.backgroundMusicSource);
+      this.backgroundMusicSource = null;
+    }
+  }
+
+  // 切换音效开关
+  toggleSound(): boolean {
+    const newState = !soundManager.getEnabled();
+    soundManager.setEnabled(newState);
+    
+    if (newState && this.gameState.gameStatus === 'playing') {
+      // 重新播放背景音乐
+      this.playBackgroundMusic();
+    } else if (!newState) {
+      // 停止背景音乐
+      this.stopBackgroundMusic();
+    }
+    
+    return newState;
+  }
+
+  // 获取音效状态
+  getSoundEnabled(): boolean {
+    return soundManager.getEnabled();
+  }
+
+  // 设置音量
+  setVolume(volume: number): void {
+    soundManager.setMasterVolume(volume);
+  }
+
+  // 获取音量
+  getVolume(): number {
+    return soundManager.getMasterVolume();
+  }
+
+  // 触摸控制方法
+  setTouchControl(direction: 'up' | 'down' | 'left' | 'right' | 'shoot', pressed: boolean): void {
+    // 恢复音频上下文以支持移动端音效
+    soundManager.resumeAudioContext();
+    this.touchControls[direction] = pressed;
+  }
+
+  // 获取是否为移动端
+  isMobile(): boolean {
+    return this.config.isMobile;
   }
 }

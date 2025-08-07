@@ -46,6 +46,8 @@ export interface GameConfig {
   bulletSpeed: number;
   enemySpawnRate: number;
   maxBullets: number;
+  isMobile: boolean;
+  scaleFactor: number;
 }
 
 // 本地存储键名定义
@@ -54,6 +56,42 @@ export const STORAGE_KEYS = {
   GAME_SETTINGS: 'bee_game_settings'
 } as const;
 
+// 响应式Canvas尺寸计算
+export function getResponsiveCanvasSize(): { width: number; height: number; isMobile: boolean; scaleFactor: number } {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+  
+  let width: number;
+  let height: number;
+  let scaleFactor: number;
+  
+  if (isMobile) {
+    // 移动端：使用屏幕宽度的90%，保持16:9比例
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    
+    if (screenWidth > screenHeight) {
+      // 横屏模式
+      width = Math.min(screenHeight * 0.9 * (16/9), screenWidth * 0.8);
+      height = width * (9/16);
+    } else {
+      // 竖屏模式
+      width = screenWidth * 0.9;
+      height = Math.min(width * (4/3), screenHeight * 0.6);
+    }
+    scaleFactor = width / 800; // 基于800px基准计算缩放比例
+  } else {
+    // 桌面端：使用固定尺寸或根据窗口大小调整
+    const maxWidth = Math.min(window.innerWidth * 0.8, 1000);
+    const maxHeight = Math.min(window.innerHeight * 0.7, 750);
+    
+    width = Math.min(800, maxWidth);
+    height = Math.min(600, maxHeight);
+    scaleFactor = 1;
+  }
+  
+  return { width, height, isMobile, scaleFactor };
+}
+
 // 游戏配置默认值
 export const DEFAULT_CONFIG: GameConfig = {
   canvasWidth: 800,
@@ -61,7 +99,9 @@ export const DEFAULT_CONFIG: GameConfig = {
   playerSpeed: 5,
   bulletSpeed: 8,
   enemySpawnRate: 0.02,
-  maxBullets: 5
+  maxBullets: 5,
+  isMobile: false,
+  scaleFactor: 1
 };
 
 // 敌机类型配置
