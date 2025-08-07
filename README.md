@@ -115,7 +115,7 @@ beegame/
 
 ## 🌟 在线演示
 
-[🎮 立即体验游戏]([https://beegame-tritechai.vercel.app/](https://traebeegame8103-tritechai-shisans-projects-aceeca3b.vercel.app/)
+[🎮 立即体验游戏](https://traebeegame8103-tritechai-shisans-projects-aceeca3b.vercel.app/)
 
 ## 🤝 贡献指南
 
